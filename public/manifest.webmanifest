@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "우리집 집안일 & 일정 관리",
+  "short_name": "공동집안일",
+  "description": "할당 없이 일정이 다가오면 누구든 수행할 때까지 함께 챙기는 부부 공동 집안일 및 일정 관리 모바일 앱",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#ffffff",
+  "background_color": "#fafaf9",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
