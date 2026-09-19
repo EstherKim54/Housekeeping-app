@@ -16,8 +16,21 @@ import {
   saveNotifications, 
   loadActiveUser, 
   saveActiveUser,
-  isChoreOverdueOrDue
+  isChoreOverdueOrDue,
+  isScheduleAlertDue
 } from './utils/storage';
+import {
+  seedInitialDataIfEmpty,
+  subscribeChores,
+  subscribeSchedules,
+  subscribeNotifications,
+  syncSaveChore,
+  syncDeleteChore,
+  syncSaveSchedule,
+  syncDeleteSchedule,
+  syncSaveNotification,
+  syncMarkAllNotificationsRead
+} from './utils/firebaseSync';
 import { fireCompletionConfetti } from './utils/confetti';
 import { PROFILES } from './data/initialData';
 
@@ -32,7 +45,7 @@ import { PraiseModal } from './components/PraiseModal';
 import { NotificationModal } from './components/NotificationModal';
 import { NotificationCenter } from './components/NotificationCenter';
 import { InstallModal } from './components/InstallModal';
-import { BellRing, CheckCircle2, Heart, X } from 'lucide-react';
+import { BellRing, CheckCircle2, Heart, X, Calendar } from 'lucide-react';
 
 export default function App() {
   // Global State
@@ -47,7 +60,7 @@ export default function App() {
     id: string;
     title: string;
     message: string;
-    type: 'alert' | 'complete' | 'praise';
+    type: 'alert' | 'complete' | 'praise' | 'schedule';
   } | null>(null);
 
   // Modal Controls
@@ -81,19 +94,96 @@ export default function App() {
     saveActiveUser(activeUser);
   }, [activeUser]);
 
-  // Silent Continuous Alert Checker:
-  // Re-evaluates due chores periodically without sound.
+  // 1. Initial Firestore Real-time Sync Setup
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Periodic check triggers re-render of due statuses
-      setChores((prev) => [...prev]);
-    }, 15000);
+    // Seed initial data if Firestore is brand new
+    seedInitialDataIfEmpty().catch((err) => {
+      console.warn('Initial Firestore seed check:', err);
+    });
 
-    return () => clearInterval(timer);
+    // Real-time listener for Chores
+    const unsubChores = subscribeChores((remoteChores) => {
+      if (remoteChores && remoteChores.length > 0) {
+        setChores(remoteChores);
+      }
+    });
+
+    // Real-time listener for Schedules
+    const unsubSchedules = subscribeSchedules((remoteSchedules) => {
+      if (remoteSchedules && remoteSchedules.length > 0) {
+        setSchedules(remoteSchedules);
+      }
+    });
+
+    // Real-time listener for Notifications
+    const unsubNotifs = subscribeNotifications((remoteNotifs) => {
+      if (remoteNotifs && remoteNotifs.length > 0) {
+        setNotifications(remoteNotifs);
+      }
+    });
+
+    return () => {
+      unsubChores();
+      unsubSchedules();
+      unsubNotifs();
+    };
   }, []);
 
+  // Silent Continuous Alert Checker & Calendar Schedule Notification Checker:
+  // Re-evaluates due chores and scheduled events periodically
+  useEffect(() => {
+    const checkAlerts = () => {
+      const now = new Date();
+
+      // 1. Check for due calendar schedule events
+      schedules.forEach((event) => {
+        if (isScheduleAlertDue(event, now) && !event.alertDismissed) {
+          // Trigger visual push toast
+          triggerPushToast(
+            '📅 캘린더 일정 알림!',
+            `[${event.title}] 일정이 다가왔습니다.`,
+            'schedule'
+          );
+
+          // Add to notification records
+          const notif: AppNotification = {
+            id: `sched-notif-${event.id}-${Date.now()}`,
+            type: 'schedule_alert',
+            title: `📅 일정 알림: ${event.title}`,
+            message: `${event.date} ${event.time ? event.time : ''}에 예정된 [${event.title}] 일정이 다가왔습니다.`,
+            timestamp: new Date().toISOString(),
+            recipient: 'both',
+            readByWife: false,
+            readByHusband: false,
+            relatedScheduleId: event.id,
+          };
+          setNotifications((prev) => [notif, ...prev]);
+          syncSaveNotification(notif).catch(console.error);
+
+          // Mark schedule alert as dismissed for this occurrence
+          const updatedEvent = { ...event, alertDismissed: true };
+          setSchedules((prev) =>
+            prev.map((ev) => (ev.id === event.id ? updatedEvent : ev))
+          );
+          syncSaveSchedule(updatedEvent).catch(console.error);
+        }
+      });
+
+      // 2. Trigger periodic re-render of chore due statuses
+      setChores((prev) => [...prev]);
+    };
+
+    checkAlerts();
+    const timer = setInterval(checkAlerts, 15000);
+    return () => clearInterval(timer);
+  }, [schedules]);
+
   // Show auto-dismiss toast
-  const triggerPushToast = (title: string, message: string, type: 'alert' | 'complete' | 'praise') => {
+  const triggerPushToast = (
+    title: string, 
+    message: string, 
+    type: 'alert' | 'complete' | 'praise' | 'schedule'
+  ) => {
     const toastObj = { id: String(Date.now()), title, message, type };
     setActiveToast(toastObj);
     setTimeout(() => {
@@ -117,82 +207,82 @@ export default function App() {
       }
       return [chore, ...prev];
     });
+    syncSaveChore(chore).catch(console.error);
     triggerPushToast('집안일 저장', `[${chore.title}] 루틴이 등록되었습니다.`, 'complete');
   };
 
   const handleDeleteChore = (choreId: string) => {
     if (window.confirm('이 공동 집안일 루틴을 삭제하시겠습니까?')) {
       setChores((prev) => prev.filter((c) => c.id !== choreId));
+      syncDeleteChore(choreId).catch(console.error);
     }
   };
 
   // Toggle Completion: Silent haptic + visual confetti
   const handleToggleComplete = (choreId: string) => {
-    setChores((prev) =>
-      prev.map((c) => {
-        if (c.id === choreId) {
-          const nextCompleted = !c.completed;
+    const target = chores.find((c) => c.id === choreId);
+    if (!target) return;
 
-          if (nextCompleted) {
-            // Visual confetti
-            fireCompletionConfetti();
+    const nextCompleted = !target.completed;
+    let updatedChore: ChoreItem;
 
-            // Mobile visual push toast
-            const performer = PROFILES[activeUser];
-            triggerPushToast(
-              '집안일 완료! 🎉',
-              `${performer.name}님이 [${c.title}]을 완료했습니다. 지속 알림이 해제되었습니다.`,
-              'complete'
-            );
+    if (nextCompleted) {
+      // Visual confetti
+      fireCompletionConfetti();
 
-            // Create notification record
-            const notif: AppNotification = {
-              id: `notif-${Date.now()}`,
-              type: 'chore_completed',
-              title: '🎉 집안일 완료 & 알림 해제',
-              message: `${performer.name}님이 [${c.title}]을 먼저 완료했습니다! 대기 중이던 알림이 해제되었습니다. 따뜻한 칭찬 카드를 보내보세요 💕`,
-              timestamp: new Date().toISOString(),
-              recipient: 'both',
-              readByWife: activeUser === 'wife',
-              readByHusband: activeUser === 'husband',
-              relatedChoreId: c.id,
-            };
-            setNotifications((n) => [notif, ...n]);
+      // Mobile visual push toast
+      const performer = PROFILES[activeUser];
+      triggerPushToast(
+        '집안일 완료! 🎉',
+        `${performer.name}님이 [${target.title}]을 완료했습니다. 지속 알림이 해제되었습니다.`,
+        'complete'
+      );
 
-            return {
-              ...c,
-              completed: true,
-              completedAt: new Date().toISOString(),
-              completedBy: activeUser,
-            };
-          } else {
-            return {
-              ...c,
-              completed: false,
-              completedAt: undefined,
-              completedBy: undefined,
-            };
-          }
-        }
-        return c;
-      })
-    );
+      // Create notification record
+      const notif: AppNotification = {
+        id: `notif-${Date.now()}`,
+        type: 'chore_completed',
+        title: '🎉 집안일 완료 & 알림 해제',
+        message: `${performer.name}님이 [${target.title}]을 먼저 완료했습니다! 대기 중이던 알림이 해제되었습니다. 따뜻한 칭찬 카드를 보내보세요 💕`,
+        timestamp: new Date().toISOString(),
+        recipient: 'both',
+        readByWife: activeUser === 'wife',
+        readByHusband: activeUser === 'husband',
+        relatedChoreId: target.id,
+      };
+      setNotifications((n) => [notif, ...n]);
+      syncSaveNotification(notif).catch(console.error);
+
+      updatedChore = {
+        ...target,
+        completed: true,
+        completedAt: new Date().toISOString(),
+        completedBy: activeUser,
+      };
+    } else {
+      updatedChore = {
+        ...target,
+        completed: false,
+        completedAt: undefined,
+        completedBy: undefined,
+      };
+    }
+
+    setChores((prev) => prev.map((c) => (c.id === choreId ? updatedChore : c)));
+    syncSaveChore(updatedChore).catch(console.error);
   };
 
   // Praise Action: Received from options list
   const handleSendPraise = (praise: PraiseRecord) => {
-    setChores((prev) =>
-      prev.map((c) => {
-        if (c.id === praise.choreId) {
-          const praises = c.praises || [];
-          return {
-            ...c,
-            praises: [...praises, praise],
-          };
-        }
-        return c;
-      })
-    );
+    const target = chores.find((c) => c.id === praise.choreId);
+    if (target) {
+      const updatedChore = {
+        ...target,
+        praises: [...(target.praises || []), praise],
+      };
+      setChores((prev) => prev.map((c) => (c.id === target.id ? updatedChore : c)));
+      syncSaveChore(updatedChore).catch(console.error);
+    }
 
     triggerPushToast(
       '칭찬 카드 전송 완료 💌',
@@ -213,6 +303,7 @@ export default function App() {
       relatedChoreId: praise.choreId,
     };
     setNotifications((prev) => [notif, ...prev]);
+    syncSaveNotification(notif).catch(console.error);
   };
 
   // Schedule Actions
@@ -224,12 +315,14 @@ export default function App() {
       }
       return [event, ...prev];
     });
+    syncSaveSchedule(event).catch(console.error);
     triggerPushToast('일정 등록', `[${event.title}] 일정이 캘린더에 추가되었습니다.`, 'complete');
   };
 
   const handleDeleteSchedule = (eventId: string) => {
     if (window.confirm('이 일정을 삭제하시겠습니까?')) {
       setSchedules((prev) => prev.filter((e) => e.id !== eventId));
+      syncDeleteSchedule(eventId).catch(console.error);
     }
   };
 
@@ -242,6 +335,7 @@ export default function App() {
         readByHusband: activeUser === 'husband' ? true : n.readByHusband,
       }))
     );
+    syncMarkAllNotificationsRead(activeUser, notifications).catch(console.error);
   };
 
   const pendingCount = chores.filter((c) => !c.completed).length;
@@ -281,12 +375,16 @@ export default function App() {
                     ? 'bg-rose-500 text-white' 
                     : activeToast.type === 'praise'
                     ? 'bg-pink-500 text-white'
+                    : activeToast.type === 'schedule'
+                    ? 'bg-amber-500 text-white'
                     : 'bg-emerald-500 text-white'
                 }`}>
                   {activeToast.type === 'alert' ? (
                     <BellRing className="w-4 h-4" />
                   ) : activeToast.type === 'praise' ? (
                     <Heart className="w-4 h-4 fill-current" />
+                  ) : activeToast.type === 'schedule' ? (
+                    <Calendar className="w-4 h-4" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}

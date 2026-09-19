@@ -65,8 +65,12 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="text-sm font-black text-stone-900 tracking-tight">
-                우리집 공동 가사
+                온이네 집
               </h1>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[9px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                실시간 연동
+              </span>
             </div>
             <p className="text-[10px] text-stone-400 font-medium">
               함께 챙기는 부부 모바일 앱

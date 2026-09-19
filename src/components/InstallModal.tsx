@@ -26,12 +26,20 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUrl)}&color=1c1917&bgcolor=ffffff`;
+  // Detect current hostname
+  const rawUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const isDevUrl = rawUrl.includes('ais-dev-');
+
+  // Provide the publicly accessible Shared App URL if currently in dev container
+  const publicShareUrl = isDevUrl
+    ? rawUrl.replace('ais-dev-', 'ais-pre-')
+    : rawUrl;
+
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(publicShareUrl)}&color=1c1917&bgcolor=ffffff`;
 
   const handleCopyUrl = async () => {
     try {
-      await navigator.clipboard.writeText(currentUrl);
+      await navigator.clipboard.writeText(publicShareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -83,6 +91,22 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose }) =
           </div>
 
           <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+            {/* Real-time sync guarantee badge */}
+            <div className="p-3 bg-emerald-50 border border-emerald-200/90 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-900">
+              <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs text-[11px] font-black">
+                ✓
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-emerald-950 flex items-center gap-1">
+                  <span>부부 스마트폰 실시간 자동 연동 활성화됨</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </h4>
+                <p className="text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed">
+                  아래 링크를 복사하여 배우자 카카오톡으로 보내보세요. 한 사람이 집안일을 체크하거나 캘린더 일정을 등록하면, 상대방 스마트폰에 즉시 실시간으로 싱크(동기화)됩니다.
+                </p>
+              </div>
+            </div>
+
             {/* Direct 1-Click Install Button if browser supports beforeinstallprompt */}
             {isInstallable && (
               <div className="p-3.5 bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl text-white shadow-md flex items-center justify-between gap-2">
@@ -122,11 +146,16 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose }) =
                   휴대폰 카메라로 QR 코드를 비추세요!
                 </h4>
                 <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">
-                  카메라를 켜고 위 QR코드를 비추면 스마트폰에서 바로 열립니다.
+                  카메라를 켜고 위 QR코드를 비추면 스마트폰에서 공유용 주소로 바로 안전하게 열립니다.
                 </p>
 
+                {/* Direct display of clean URL */}
+                <div className="mt-2 p-2 bg-stone-100 rounded-xl text-[10px] text-stone-600 font-mono break-all select-all border border-stone-200">
+                  {publicShareUrl}
+                </div>
+
                 {/* URL Copy Button */}
-                <div className="mt-2.5 flex items-center gap-1">
+                <div className="mt-2 flex items-center gap-1">
                   <button
                     type="button"
                     onClick={handleCopyUrl}

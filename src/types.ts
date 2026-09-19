@@ -51,6 +51,8 @@ export interface ChoreItem {
 
 export type ScheduleCategory = 'together' | 'wife' | 'husband' | 'family' | 'anniversary';
 
+export type ScheduleAlertTiming = 'none' | 'at_time' | '10m_before' | '30m_before' | '1h_before' | 'morning_9am';
+
 export interface ScheduleEvent {
   id: string;
   title: string;
@@ -61,6 +63,9 @@ export interface ScheduleEvent {
   notes?: string;
   linkedChoreId?: string;
   linkedChoreTitle?: string;
+  enableAlert?: boolean; // 캘린더 일정 알림 여부
+  alertTiming?: ScheduleAlertTiming; // 언제 알림을 보낼지
+  alertDismissed?: boolean; // 알림 확인 여부
 }
 
 export type NotificationType = 
@@ -69,6 +74,7 @@ export type NotificationType =
   | 'evening_7pm' 
   | 'praise' 
   | 'chore_completed' 
+  | 'schedule_alert'
   | 'general';
 
 export interface AppNotification {
@@ -81,4 +87,5 @@ export interface AppNotification {
   readByWife: boolean;
   readByHusband: boolean;
   relatedChoreId?: string;
+  relatedScheduleId?: string;
 }

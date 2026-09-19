@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "우리집 집안일 & 일정 관리",
-  "short_name": "공동집안일",
-  "description": "할당 없이 일정이 다가오면 누구든 수행할 때까지 함께 챙기는 부부 공동 집안일 및 일정 관리 모바일 앱",
+  "name": "온이네 집",
+  "short_name": "온이네 집",
+  "description": "온이네 가족의 부부 공동 집안일 및 일정 관리, 상호 칭찬 모바일 앱",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

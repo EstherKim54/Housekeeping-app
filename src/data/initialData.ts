@@ -108,6 +108,18 @@ export const INITIAL_CHORES: ChoreItem[] = [
 
 export const INITIAL_SCHEDULES: ScheduleEvent[] = [
   {
+    id: 'event-0',
+    title: '저녁 장보기 & 반찬거리 고르기 🥗',
+    date: '2026-09-18',
+    time: '20:00',
+    participants: ['wife', 'husband'],
+    category: 'together',
+    notes: '두부, 찌개용 야채, 계란 한 판 구매하기',
+    linkedChoreTitle: '분리수거 및 음식물 쓰레기 배출',
+    enableAlert: true,
+    alertTiming: '30m_before'
+  },
+  {
     id: 'event-1',
     title: '주말 이마트 장보기 데이트 🛒',
     date: '2026-09-20',
@@ -115,7 +127,9 @@ export const INITIAL_SCHEDULES: ScheduleEvent[] = [
     participants: ['wife', 'husband'],
     category: 'together',
     notes: '생수 1박스, 과일, 세제 리필 사오기',
-    linkedChoreTitle: '식자재 소분 및 냉장고 정리'
+    linkedChoreTitle: '식자재 소분 및 냉장고 정리',
+    enableAlert: true,
+    alertTiming: '1h_before'
   },
   {
     id: 'event-2',
@@ -124,7 +138,9 @@ export const INITIAL_SCHEDULES: ScheduleEvent[] = [
     time: '10:00',
     participants: ['husband'],
     category: 'husband',
-    notes: '전날 밤 9시부터 금식'
+    notes: '전날 밤 9시부터 금식',
+    enableAlert: true,
+    alertTiming: 'morning_9am'
   },
   {
     id: 'event-3',
@@ -134,7 +150,9 @@ export const INITIAL_SCHEDULES: ScheduleEvent[] = [
     participants: ['wife', 'husband'],
     category: 'family',
     notes: '집 대청소 및 손님맞이 상차림 준비 필요',
-    linkedChoreTitle: '집 전체 대청소 및 환기'
+    linkedChoreTitle: '집 전체 대청소 및 환기',
+    enableAlert: true,
+    alertTiming: '1h_before'
   },
   {
     id: 'event-4',
@@ -143,7 +161,9 @@ export const INITIAL_SCHEDULES: ScheduleEvent[] = [
     time: '19:30',
     participants: ['wife'],
     category: 'wife',
-    notes: '개인 레슨 14회차'
+    notes: '개인 레슨 14회차',
+    enableAlert: true,
+    alertTiming: '30m_before'
   }
 ];
 

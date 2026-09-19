@@ -118,3 +118,40 @@ export function isChoreOverdueOrDue(chore: ChoreItem, now: Date = new Date()): b
 
   return currentMinutes >= targetMinutes;
 }
+
+/**
+ * Checks if a calendar event is due for notification
+ */
+export function isScheduleAlertDue(event: ScheduleEvent, now: Date = new Date()): boolean {
+  if (!event.enableAlert || event.alertDismissed) return false;
+
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  
+  // Only alert for events on or before today (not future days)
+  if (event.date > todayStr) return false;
+
+  const timing = event.alertTiming || 'at_time';
+
+  // If morning 9 AM alert
+  if (timing === 'morning_9am') {
+    const alertTime = new Date(event.date);
+    alertTime.setHours(9, 0, 0, 0);
+    return now.getTime() >= alertTime.getTime();
+  }
+
+  // If no specific time was set, default to 09:00 AM on that date
+  const eventTimeStr = event.time || '09:00';
+  const [hours, minutes] = eventTimeStr.split(':').map(Number);
+  
+  const eventDateTime = new Date(`${event.date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+
+  let minutesOffset = 0;
+  if (timing === '10m_before') minutesOffset = 10;
+  else if (timing === '30m_before') minutesOffset = 30;
+  else if (timing === '1h_before') minutesOffset = 60;
+
+  const alertTriggerTime = new Date(eventDateTime.getTime() - minutesOffset * 60 * 1000);
+
+  return now.getTime() >= alertTriggerTime.getTime();
+}
+

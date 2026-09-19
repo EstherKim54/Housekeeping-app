@@ -10,7 +10,8 @@ import {
   Sparkles,
   BellRing,
   CheckCircle2,
-  Info
+  Info,
+  Calendar
 } from 'lucide-react';
 import { AppNotification, PersonId } from '../types';
 import { PROFILES } from '../data/initialData';
@@ -41,6 +42,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const getIcon = (type: string) => {
     switch (type) {
+      case 'schedule_alert':
+        return <Calendar className="w-4 h-4 text-amber-500" />;
       case 'continuous_alert':
         return <BellRing className="w-4 h-4 text-rose-500" />;
       case 'morning_7am':
